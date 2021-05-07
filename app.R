@@ -12,9 +12,81 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 
+
+##################
+# USER INTERFACE #
+##################
+
+
+# Define IU
+ui <- shinyUI(fluidPage(
+    
+    # Application title
+    titlePanel("Temperature effects on insect population dynamics"),
+    
+    # Sidebar with a slider input for number of bins 
+    sidebarLayout(
+        sidebarPanel(
+            helpText("Move the slider to adjust the habitat temperature. The model will use the parameters from the temperature responses (top panels) and project the population dynamics (lower figure)."),
+            sliderInput("Temp",
+                        "Temperature (°C):",
+                        min = 0,
+                        max = 40,
+                        value = 20,
+                        step = 0.1),
+            h4("Starting population densities"),
+            numericInput("startA",
+                         "Adults:",
+                         min = 0,
+                         max = 1,
+                         value = 0.01,
+                         step = 0.01),
+            numericInput("startJ",
+                         "Juveniles:",
+                         min = 0,
+                         max = 1,
+                         value = 0.01,
+                         step = 0.01),
+            h4("Plot options"),
+            numericInput("xmax",
+                         "X-axis maximum:",
+                         min = 0,
+                         max = 10e6,
+                         value = 100,
+                         step = 1),
+            numericInput("ymax",
+                         "Y-axis maximum:",
+                         min = 0.1,
+                         max = 3,
+                         value = 1.5,
+                         step = 0.1)
+        ),
+        
+        # Show a plot of the generated distribution
+        mainPanel(
+            tabsetPanel(
+                tabPanel("Model dynamics",
+                         fluidRow(
+                             column(4, plotOutput("vital_repro")),
+                             column(4, plotOutput("vital_devel")),
+                             column(4, plotOutput("vital_mort"))
+                         ),
+                         fluidRow(
+                             column(12, plotOutput("POPDYN"))
+                         )
+                ),
+                tabPanel("Model description",
+                         withMathJax(includeMarkdown("ModelDescription.md")))
+            )
+        )
+    )
+))
+
+
 ##########
 # SERVER #
 ##########
+
 
 # define temperature conversion functions
 C2K <- function(x){
@@ -23,7 +95,7 @@ C2K <- function(x){
 K2C <- function(x){
     x-273.15
 }
-# set colorscheme
+# set color scheme
 J_color <- "dodgerblue2"
 A_color <- "firebrick2"
 # define fixed model parameters
@@ -87,8 +159,15 @@ TempMod <- function (time, state, Tparams) {
     })
 }
 
-# Define server
+#################
+# Define server #
+#################
+
 server <- shinyServer(function(input, output) {
+
+    #############
+    # REACTIVES #
+    #############
     
     # fecundity plot
     output$vital_repro <- renderPlot({
@@ -146,28 +225,9 @@ server <- shinyServer(function(input, output) {
     
 })
 
-# Define UI for application that draws a histogram
-ui <- fluidPage(
 
-    # Application title
-    titlePanel("Old Faithful Geyser Data"),
+###########
+# RUN APP #
+###########
 
-    # Sidebar with a slider input for number of bins 
-    sidebarLayout(
-        sidebarPanel(
-            sliderInput("bins",
-                        "Number of bins:",
-                        min = 1,
-                        max = 50,
-                        value = 30)
-        ),
-
-        # Show a plot of the generated distribution
-        mainPanel(
-           plotOutput("distPlot")
-        )
-    )
-)
-
-# Run the application 
 shinyApp(ui = ui, server = server)
