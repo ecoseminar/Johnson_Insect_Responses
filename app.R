@@ -64,8 +64,8 @@ ui <- shinyUI(fluidPage(
         
         # Show a plot of the generated distribution
         mainPanel(
-            tabsetPanel(
-                tabPanel("Model dynamics",
+            #tabsetPanel(
+            #    tabPanel("Model dynamics",
                          fluidRow(
                              column(4, plotOutput("vital_repro")),
                              column(4, plotOutput("vital_devel")),
@@ -73,10 +73,10 @@ ui <- shinyUI(fluidPage(
                          ),
                          fluidRow(
                              column(12, plotOutput("POPDYN"))
-                         )
-                ),
-                tabPanel("Model description",
-                         withMathJax(includeMarkdown("ModelDescription.md")))
+                #         )
+                #),
+                #tabPanel("Model description",
+                #         withMathJax(includeMarkdown("ModelDescription.md")))
             )
         )
     )
