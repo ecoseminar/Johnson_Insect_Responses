@@ -27,12 +27,19 @@ ui <- shinyUI(fluidPage(
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
-            helpText("Move the slider to adjust the habitat temperature. The model will use the parameters from the temperature responses (top panels) and project the population dynamics (lower figure)."),
-            sliderInput("Temp",
-                        "Temperature (°C):",
+            helpText("Move the slider to adjust the mean habitat temperature. The model will use the parameters from the temperature responses (top panels) and project the population dynamics (lower figure)."),
+            sliderInput("MeanTemp",
+                        "Mean Habitat Temperature (°C):",
                         min = 0,
                         max = 40,
                         value = 20,
+                        step = 0.1),
+            helpText("Move the slider to adjust the amplitude of seasonal temperature fluctuations."),
+            sliderInput("AmplTemp",
+                        "Amplitude of Seasonal Temperature Fluctuations (°C):",
+                        min = 0,
+                        max = 10,
+                        value = 2,
                         step = 0.1),
             h4("Starting population densities"),
             numericInput("startA",
@@ -94,6 +101,9 @@ C2K <- function(x){
 }
 K2C <- function(x){
     x-273.15
+}
+HabitatTemp <- function(mean,ampl){
+    273.15 + mean + ampl*sin(2*pi*t/365 + 0)
 }
 # set color scheme
 J_color <- "dodgerblue2"
@@ -172,22 +182,22 @@ server <- shinyServer(function(input, output) {
     # fecundity plot
     output$vital_repro <- renderPlot({
         t_vital_repro+
-            geom_vline(xintercept = input$Temp)
+            geom_vline(xintercept = input$MeanTemp)
     })
     # development plot
     output$vital_devel <- renderPlot({
         t_vital_devel+
-            geom_vline(xintercept = input$Temp)
+            geom_vline(xintercept = input$MeanTemp)
     })
     # mortality plot
     output$vital_mort <- renderPlot({
         t_vital_mort+
-            geom_vline(xintercept = input$Temp)
+            geom_vline(xintercept = input$MeanTemp)
     })
     
     # population dynamics
     output$POPDYN <- renderPlot({
-        TempK <- C2K(input$Temp)
+        TempK <- HabitatTemp(input$MeanTemp, input$AmplTemp)
         
         # calculate dynamic population parameters
         Tparams <- c(r = params["r_Topt",]*exp(-((TempK-params["T_opt",])^2)/(2*(params["s",])^2)),
