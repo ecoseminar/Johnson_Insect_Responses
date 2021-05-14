@@ -11,7 +11,7 @@ library(deSolve)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
-
+library(cowplot)
 
 ##################
 # USER INTERFACE #
@@ -102,9 +102,6 @@ C2K <- function(x){
 K2C <- function(x){
     x-273.15
 }
-HabitatTemp <- function(mean,ampl){
-    273.15 + mean + ampl*sin(2*pi*t/365 + 0)
-}
 # set color scheme
 J_color <- "dodgerblue2"
 A_color <- "firebrick2"
@@ -160,15 +157,6 @@ t_vital_mort <- ggplot(vitalrates, aes(x = TempC))+
           legend.text = element_text(size = 16),
           panel.grid = element_blank())
 
-# define population dynamic model
-TempMod <- function (time, state, Tparams) {
-    with(as.list(c(state, Tparams)), {
-        dJdt = r*A*exp(-A)-m*J-d_J*J
-        dAdt = m*J-d_A*A
-        return(list(c(dJdt, dAdt)))
-    })
-}
-
 #################
 # Define server #
 #################
@@ -197,30 +185,46 @@ server <- shinyServer(function(input, output) {
     
     # population dynamics
     output$POPDYN <- renderPlot({
-        TempK <- HabitatTemp(input$MeanTemp, input$AmplTemp)
-        
-        # calculate dynamic population parameters
-        Tparams <- c(r = params["r_Topt",]*exp(-((TempK-params["T_opt",])^2)/(2*(params["s",])^2)),
-                     m = params["m_R",]*
-                         (TempK/params["T_R",])*
-                         ((exp(params["A_m",]*
-                                   ((1/params["T_R",])-(1/TempK))))/
-                              (1+exp(params["A_L",]*((1/params["T_L",])-(1/TempK)))+exp(params["A_H",]*((1/params["T_H",])-(1/TempK))))),
-                     d_J = params["d_JR",]*exp(params["A_dJ",]*((1/params["T_R",])-(1/TempK))),
-                     d_A = params["d_AR",]*exp(params["A_dA",]*((1/params["T_R",])-(1/TempK))))
-        state <- c(J = input$startJ, A = input$startA)
-        time <- seq(0, 100, by = 1)
         time <- seq(0, input$xmax, by = 1)
+        state <- c(J = input$startJ, A = input$startA)
+        
+        # calculate habitat temperature
+        HabitatTemp <- 273.15 + input$MeanTemp + input$AmplTemp*sin(2*pi*time/365 + 0)
+        # time-series of temperature values
+        signal <- as.data.frame(list(times = time, temp = rep(0, length(time))))
+        signal$temp <- HabitatTemp
+        # create interpolating function
+        inter.func <- approxfun(signal, rule = 2 ) # rule = 2 sets any extrapolated point to the closest data extreme
+        
+        # define population dynamic model
+        TempMod <- function (time, state, Tparams) {
+            with(as.list(c(state, Tparams)), {
+                # import interpolated temperature function
+                TempK <-  inter.func(time)
+                
+                # calculate dynamic population parameters
+                r <- params["r_Topt",]*exp(-((TempK-params["T_opt",])^2)/(2*(params["s",])^2))
+                m <- params["m_R",]*(TempK/params["T_R",])*((exp(params["A_m",]*((1/params["T_R",])-(1/TempK))))/
+                                                                (1+exp(params["A_L",]*((1/params["T_L",])-(1/TempK)))+exp(params["A_H",]*((1/params["T_H",])-(1/TempK)))))
+                d_J <- params["d_JR",]*exp(params["A_dJ",]*((1/params["T_R",])-(1/TempK)))
+                d_A <- params["d_AR",]*exp(params["A_dA",]*((1/params["T_R",])-(1/TempK)))
+                
+                # population dynamics
+                dJdt = r*A*exp(-A)-m*J-d_J*J
+                dAdt = m*J-d_A*A
+                return(list(c(dJdt, dAdt), signal = TempK))
+            })
+        }
         
         # project population dynamics
-        popdyn <- as.data.frame(ode(func = TempMod, y = state, parms = Tparams, times = time)) %>%
+        popdyn <- as.data.frame(ode(func = TempMod, y = state, parms = params, times = time)) %>%
             gather("stage","popdens",2:3)
         
         # draw the population dynamics figure
         ggplot(popdyn, aes(x = time, y = popdens, group = stage, color = stage))+
             geom_line(size = 3)+
-            scale_x_continuous(name = "Time")+
-            scale_x_continuous(name = "Time", limits = c(0, input$xmax))+
+            #scale_x_continuous(name = "Time")+
+            #scale_x_continuous(name = "Time", limits = c(0, input$xmax))+
             scale_y_continuous(name = "Population Density", limits = c(0, input$ymax))+
             scale_color_manual(name = "Stage", breaks = c("J", "A"), labels = c("Juveniles", "Adults"), values = c(J_color, A_color))+
             theme_bw()+
