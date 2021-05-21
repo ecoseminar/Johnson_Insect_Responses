@@ -27,21 +27,33 @@ ui <- shinyUI(fluidPage(
     # Sidebar with a slider input for number of bins 
     sidebarLayout(
         sidebarPanel(
-            helpText("Move the slider to adjust the mean habitat temperature. The model will use the parameters from the temperature responses (top panels) and project the population dynamics (lower figure)."),
+            h4("Current climate:"),
             sliderInput("MeanTemp",
-                        "Mean Habitat Temperature (°C):",
+                        "Mean habitat temperature (°C):",
                         min = 0,
                         max = 40,
                         value = 20,
                         step = 0.1),
-            helpText("Move the slider to adjust the amplitude of seasonal temperature fluctuations."),
-            sliderInput("AmplTemp",
-                        "Amplitude of Seasonal Temperature Fluctuations (°C):",
+            sliderInput("TempFluc",
+                        "Seasonal temperature fluctuations (difference between warmest and coldest month):",
+                        min = 0,
+                        max = 20,
+                        value = 4,
+                        step = 0.1),
+            h4("Climate change:"),
+            sliderInput("MeanT.incr",
+                        "Increase in mean temperature over the next 100 years:",
                         min = 0,
                         max = 10,
-                        value = 2,
+                        value = 0,
                         step = 0.1),
-            h4("Starting population densities"),
+            sliderInput("Fluc.incr",
+                        "Increase in seasonal temperature fluctuations over the next 100 years:",
+                        min = 0,
+                        max = 20,
+                        value = 0,
+                        step = 0.1),
+            h4("Starting population densities:"),
             numericInput("startA",
                          "Adults:",
                          min = 0,
@@ -54,9 +66,9 @@ ui <- shinyUI(fluidPage(
                          max = 1,
                          value = 0.01,
                          step = 0.01),
-            h4("Plot options"),
+            h4("Plot options:"),
             numericInput("xmax",
-                         "X-axis maximum:",
+                         "Length of simulation (years):",
                          min = 0,
                          max = 10e6,
                          value = 100,
@@ -185,11 +197,11 @@ server <- shinyServer(function(input, output) {
     
     # population dynamics
     output$POPDYN <- renderPlot({
-        time <- seq(0, input$xmax, by = 1)
+        time <- seq(0, input$xmax*365, by = 1)
         state <- c(J = input$startJ, A = input$startA)
         
         # calculate habitat temperature
-        HabitatTemp <- 273.15 + input$MeanTemp + input$AmplTemp*sin(2*pi*time/365 + 0)
+        HabitatTemp <- 273.15 + (input$MeanTemp + input$MeanT.incr*time/(365*100)) + (input$TempFluc/2 + input$Fluc.incr/2*time/(365*100))*sin(2*pi*time/365 + 0)
         # time-series of temperature values
         signal <- as.data.frame(list(times = time, temp = rep(0, length(time))))
         signal$temp <- HabitatTemp
@@ -219,14 +231,30 @@ server <- shinyServer(function(input, output) {
         # project population dynamics
         popdyn <- as.data.frame(ode(func = TempMod, y = state, parms = params, times = time)) %>%
             gather("stage","popdens",2:3)
+        # gather model variables (time, temp, life stage, density)
+        model.output = popdyn[seq(0, dim(popdyn)[1], by=1), ]
+        model.output = gather(model.output, key=Variable, value=Output, -time)
         
         # draw the population dynamics figure
         ggplot(popdyn, aes(x = time, y = popdens, group = stage, color = stage))+
             geom_line(size = 3)+
-            #scale_x_continuous(name = "Time")+
-            #scale_x_continuous(name = "Time", limits = c(0, input$xmax))+
+            scale_x_continuous(name = "Time (years)", limits = c(0, input$xmax))+
             scale_y_continuous(name = "Population Density", limits = c(0, input$ymax))+
             scale_color_manual(name = "Stage", breaks = c("J", "A"), labels = c("Juveniles", "Adults"), values = c(J_color, A_color))+
+            theme_bw()+
+            theme(axis.title = element_text(size = 24, face = "bold"),
+                  axis.text = element_text(size = 18),
+                  legend.title = element_text(size = 18, face = "bold"),
+                  legend.text = element_text(size = 16),
+                  legend.position = "top",
+                  panel.grid = element_blank())
+        
+        # draw habitat temperature figure
+        ggplot(model.output[model.output$Variable %in% c("signal"), ], aes(x=time, y=Output, color=Variable)) + 
+            geom_line(size = 3) +
+            scale_color_manual(values=c("signal"="#d1495b")) + 
+            scale_x_continuous(name = "Time (years)", limits = c(0, input$xmax))+
+            scale_y_continuous(name = "Temperature (C)", limits = c(input$MeanTemp - input$Fluc.incr/2, input$MeanTemp + input$TempFluc/2 + input$Temp.incr + input$Fluc.incr/2)) +
             theme_bw()+
             theme(axis.title = element_text(size = 24, face = "bold"),
                   axis.text = element_text(size = 18),
