@@ -182,17 +182,17 @@ server <- shinyServer(function(input, output) {
     # fecundity plot
     output$vital_repro <- renderPlot({
         t_vital_repro+
-            geom_vline(xintercept = input$MeanTemp)
+            geom_vline(xintercept = input$MeanTemp + input$MeanT.incr)
     })
     # development plot
     output$vital_devel <- renderPlot({
         t_vital_devel+
-            geom_vline(xintercept = input$MeanTemp)
+            geom_vline(xintercept = input$MeanTemp + input$MeanT.incr)
     })
     # mortality plot
     output$vital_mort <- renderPlot({
         t_vital_mort+
-            geom_vline(xintercept = input$MeanTemp)
+            geom_vline(xintercept = input$MeanTemp + input$MeanT.incr)
     })
     
     # population dynamics
@@ -229,17 +229,17 @@ server <- shinyServer(function(input, output) {
         }
         
         # project population dynamics
-        popdyn <- as.data.frame(ode(func = TempMod, y = state, parms = params, times = time)) %>%
-            gather("stage","popdens",2:3)
+        popdyn <- as.data.frame(ode(func = TempMod, y = state, parms = params, times = time))
+        
         # gather model variables (time, temp, life stage, density)
         model.output = popdyn[seq(0, dim(popdyn)[1], by=1), ]
         model.output = gather(model.output, key=Variable, value=Output, -time)
         
         # draw the population dynamics figure
-        ggplot(popdyn, aes(x = time, y = popdens, group = stage, color = stage))+
+        plot.dyn = ggplot(model.output[model.output$Variable %in% c("J", "A"), ], aes(x=time, y=Output, color=Variable)) +
             geom_line(size = 3)+
-            scale_x_continuous(name = "Time (years)", limits = c(0, input$xmax))+
-            scale_y_continuous(name = "Population Density", limits = c(0, input$ymax))+
+            scale_x_continuous(name = "Time (days)", limits = c(0, input$xmax*365))+
+            scale_y_continuous(name = "Density", limits = c(0, input$ymax))+
             scale_color_manual(name = "Stage", breaks = c("J", "A"), labels = c("Juveniles", "Adults"), values = c(J_color, A_color))+
             theme_bw()+
             theme(axis.title = element_text(size = 24, face = "bold"),
@@ -250,19 +250,19 @@ server <- shinyServer(function(input, output) {
                   panel.grid = element_blank())
         
         # draw habitat temperature figure
-        ggplot(model.output[model.output$Variable %in% c("signal"), ], aes(x=time, y=Output, color=Variable)) + 
+        plot.temp = ggplot(model.output[model.output$Variable %in% c("signal"), ], aes(x=time, y=Output, color=Variable)) + 
             geom_line(size = 3) +
-            scale_color_manual(values=c("signal"="#d1495b")) + 
-            scale_x_continuous(name = "Time (years)", limits = c(0, input$xmax))+
-            scale_y_continuous(name = "Temperature (C)", limits = c(input$MeanTemp - input$Fluc.incr/2, input$MeanTemp + input$TempFluc/2 + input$Temp.incr + input$Fluc.incr/2)) +
+            scale_color_manual(values=c("signal"="firebrick2")) + 
+            scale_x_continuous(name = "Time (days)", limits = c(0, input$xmax*365))+
+            scale_y_continuous(name = "Temperature (C)",limits = c(273 + input$MeanTemp - input$TempFluc/2 - input$Fluc.incr/2, 273 + input$MeanTemp + input$TempFluc/2 + input$MeanT.incr + input$Fluc.incr/2)) +
             theme_bw()+
             theme(axis.title = element_text(size = 24, face = "bold"),
                   axis.text = element_text(size = 18),
-                  legend.title = element_text(size = 18, face = "bold"),
-                  legend.text = element_text(size = 16),
-                  legend.position = "top",
+                  legend.position = "none",
                   panel.grid = element_blank())
         
+        ggdraw() + draw_plot(plot.dyn, x = 0, y = 0.5, width = 1, height = 0.5) +
+            draw_plot(plot.temp, x = 0, y = 0, width = 1, height = 0.5)
     })
     
 })
