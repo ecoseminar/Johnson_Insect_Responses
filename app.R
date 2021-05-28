@@ -89,7 +89,7 @@ ui <- shinyUI(fluidPage(
                          "Minimum density on plot:",
                          min = 0,
                          max = 10,
-                         value = 0.5,
+                         value = 0,
                          step = 0.1),
             numericInput("ymax",
                          "Maximum density on plot:",
