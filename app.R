@@ -67,16 +67,28 @@ ui <- shinyUI(fluidPage(
                          value = 0.01,
                          step = 0.01),
             h4("Plot options:"),
-            numericInput("xmax",
+            numericInput("yrs",
                          "Length of simulation (years):",
                          min = 0,
                          max = 10e6,
                          value = 100,
                          step = 1),
+            numericInput("xmin",
+                         "Starting year on plot:",
+                         min = 0,
+                         max = input$yrs,
+                         value = 90,
+                         step = 1),
+            numericInput("xmax",
+                         "Ending year on plot:",
+                         min = input$xmin,
+                         max = input$yrs,
+                         value = 100,
+                         step = 1),
             numericInput("ymax",
-                         "Y-axis maximum:",
+                         "Maximum density on plot:",
                          min = 0.1,
-                         max = 3,
+                         max = 10,
                          value = 1.5,
                          step = 0.1)
         ),
@@ -197,7 +209,7 @@ server <- shinyServer(function(input, output) {
     
     # population dynamics
     output$POPDYN <- renderPlot({
-        time <- seq(0, input$xmax*365, by = 1)
+        time <- seq(0, input$yrs*365, by = 1)
         state <- c(J = input$startJ, A = input$startA)
         
         # calculate habitat temperature
@@ -238,7 +250,7 @@ server <- shinyServer(function(input, output) {
         # draw the population dynamics figure
         plot.dyn = ggplot(model.output[model.output$Variable %in% c("J", "A"), ], aes(x=time, y=Output, color=Variable)) +
             geom_line(size = 3)+
-            scale_x_continuous(name = "Time (days)", limits = c(0, input$xmax*365))+
+            scale_x_continuous(name = "Time (days)", limits = c(0, input$yrs*365))+
             scale_y_continuous(name = "Density", limits = c(0, input$ymax))+
             scale_color_manual(name = "Stage", breaks = c("J", "A"), labels = c("Juveniles", "Adults"), values = c(J_color, A_color))+
             theme_bw()+
@@ -253,7 +265,7 @@ server <- shinyServer(function(input, output) {
         plot.temp = ggplot(model.output[model.output$Variable %in% c("signal"), ], aes(x=time, y=Output, color=Variable)) + 
             geom_line(size = 3) +
             scale_color_manual(values=c("signal"="firebrick2")) + 
-            scale_x_continuous(name = "Time (days)", limits = c(0, input$xmax*365))+
+            scale_x_continuous(name = "Time (days)", limits = c(0, input$yrs*365))+
             scale_y_continuous(name = "Temperature (C)",limits = c(273 + input$MeanTemp - input$TempFluc/2 - input$Fluc.incr/2, 273 + input$MeanTemp + input$TempFluc/2 + input$MeanT.incr + input$Fluc.incr/2)) +
             theme_bw()+
             theme(axis.title = element_text(size = 24, face = "bold"),
