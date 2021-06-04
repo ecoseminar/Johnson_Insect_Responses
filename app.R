@@ -151,7 +151,7 @@ vitalrates <- data.frame(TempC = seq(0, 40, by = 0.1)) %>%
            Mort_A = params["d_AR",]*exp(params["A_dA",]*((1/params["T_R",])-(1/TempK))))
 # reproduction
 t_vital_repro <- ggplot(vitalrates, aes(x = TempC, y = Repro))+
-    geom_line(size = 2, color = J_color)+
+    geom_line(size = 2, color = A_color)+
     scale_x_continuous(name = "Temperature (°C)", limits = c(0, 40))+
     scale_y_continuous(name = "Reproduction", limits = c(0, 1))+
     scale_color_hue()+
