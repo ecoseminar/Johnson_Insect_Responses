@@ -272,7 +272,7 @@ server <- shinyServer(function(input, output) {
             geom_line(size = 3) +
             scale_color_manual(values=c("signal"="firebrick2")) + 
             scale_x_continuous(name = "Time (days)", limits = c(input$xmin*365, input$xmax*365))+
-            scale_y_continuous(name = "Temperature (C)",limits = c(273 + input$MeanTemp - input$TempFluc/2 - input$Fluc.incr/2 - 0.5, 273 + input$MeanTemp + input$TempFluc/2 + input$MeanT.incr + input$Fluc.incr/2) + 0.5) +
+            scale_y_continuous(name = "Temperature (K)",limits = c(273 + input$MeanTemp - input$TempFluc/2 - input$Fluc.incr/2 - 0.5, 273 + input$MeanTemp + input$TempFluc/2 + input$MeanT.incr + input$Fluc.incr/2) + 0.5) +
             theme_bw()+
             theme(axis.title = element_text(size = 24, face = "bold"),
                   axis.text = element_text(size = 18),
